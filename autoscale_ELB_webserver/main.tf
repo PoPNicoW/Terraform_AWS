@@ -5,20 +5,18 @@ variable "server_port" {
   default = 8080
 }
 
+data "aws_availability_zones" "all" {}
+
 resource "aws_launch_configuration" "example" {
-  ami		= "ami-075b44448d2276521"
+  image_id = "ami-075b44448d2276521"
   instance_type = "t2.micro"
-  vpc_security_group_ids = ["${aws_security_group.instance.id}"]
+  security_groups = ["${aws_security_group.instance.id}"]
 
   user_data = <<-EOF
               #!/bin/bash
               echo "Hello, World" > index.html
 	      nohup busybox httpd -f -p "${var.server_port}" &
               EOF
-
-  tags {
-    Name = "terraform-example"
-       }
 
   lifecycle { 
     create_before_destroy = true
@@ -43,8 +41,8 @@ resource "aws_security_group" "instance" {
 
 resource "aws_autoscaling_group" "example" {
   launch_configuration = "${aws_launch_configuration.example.id}"
-  availability_zones = ["${data.aws_avaibility_zones.all.names}"]
-  load_balancers = ["$aws_elb.example.name}"]
+  availability_zones = ["${data.aws_availability_zones.all.names}"]
+  load_balancers = ["${aws_elb.example.name}"]
   health_check_type = "ELB"
 
   min_size = 2
@@ -60,7 +58,7 @@ resource "aws_autoscaling_group" "example" {
 resource "aws_elb" "example" {
   name			= "terraform-asg-example"
   availability_zones    = ["${data.aws_availability_zones.all.names}"]
-  seurity_groups = ["${aws_security_group.elb.id}"]
+  security_groups = ["${aws_security_group.elb.id}"]
 
    listener {
       lb_port = 80
@@ -69,7 +67,7 @@ resource "aws_elb" "example" {
       instance_protocol = "http"
   }
 
-  heatlh_check {
+  health_check {
       healthy_threshold = 2
       unhealthy_threshold = 2
       timeout = 3
@@ -92,11 +90,11 @@ resource "aws_security_group" "elb" {
       from_port = 0
       to_port = 0
       protocol = "-1"
-      cidr_blocks ["0.0.0.0/0"]
+      cidr_blocks = ["0.0.0.0/0"]
  }
 }
 
-outout "elb_dns_name" {
+output "elb_dns_name" {
   value = "${aws_elb.example.dns_name}"
 }
 
